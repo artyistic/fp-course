@@ -85,46 +85,61 @@ printFile ::
   FilePath
   -> Chars
   -> IO ()
-printFile =
-  error "todo: Course.FileIO#printFile"
+-- printFile =
+--   error "todo: Course.FileIO#printFile"
+
+printFile name content =
+  putStrLn ("============ " ++ name) >>
+  putStrLn content
+
 
 -- Given a list of (file name and file contents), print each.
 -- Use @printFile@.
 printFiles ::
   List (FilePath, Chars)
   -> IO ()
-printFiles =
-  error "todo: Course.FileIO#printFiles"
+-- printFiles Nil = pure ()
+-- printFiles (t :. ts) =
+--   uncurry printFile t >>= const (printFiles ts)
+
+printFiles = void . sequence . (<$>) (uncurry printFile)
+-- sequence to "run" them, void to turn the type to IO () from IO (List ())
 
 -- Given a file name, return (file name and file contents).
 -- Use @readFile@.
 getFile ::
   FilePath
   -> IO (FilePath, Chars)
-getFile =
-  error "todo: Course.FileIO#getFile"
+getFile = lift2 (<$>) (,) readFile
 
 -- Given a list of file names, return list of (file name and file contents).
 -- Use @getFile@.
 getFiles ::
   List FilePath
   -> IO (List (FilePath, Chars))
-getFiles =
-  error "todo: Course.FileIO#getFiles"
+getFiles = sequence . (<$>) getFile
 
 -- Given a file name, read it and for each line in that file, read and print contents of each.
 -- Use @getFiles@, @lines@, and @printFiles@.
 run ::
   FilePath
   -> IO ()
-run =
-  error "todo: Course.FileIO#run"
+-- run fpath = printFiles =<< (getFiles . lines =<< readFile fpath)
+-- translated into do notation
+run fpath = do
+  content <- readFile fpath
+  res <- (getFiles . lines) content
+  printFiles res
 
 -- /Tip:/ use @getArgs@ and @run@
 main ::
   IO ()
-main =
-  error "todo: Course.FileIO#main"
+-- main = void . sequence . map run =<< getArgs
+main = do
+  args <- getArgs
+  case args of
+    filename :. Nil -> run filename
+    _ -> putStrLn "usage: runhaskell io.hs filename"
 
 ----
 
