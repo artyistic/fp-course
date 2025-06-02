@@ -313,8 +313,7 @@ instance Functor (Logger l) where
     (a -> b) ->
     Logger l a ->
     Logger l b
-  (<$>) =
-    error "todo: Course.StateT (<$>)#instance (Logger l)"
+  (<$>) f (Logger lis a) = Logger lis $ f a
 
 -- | Implement the `Applicative` instance for `Logger`.
 --
@@ -327,15 +326,13 @@ instance Applicative (Logger l) where
   pure ::
     a ->
     Logger l a
-  pure =
-    error "todo: Course.StateT pure#instance (Logger l)"
+  pure = Logger Nil
 
   (<*>) ::
     Logger l (a -> b) ->
     Logger l a ->
     Logger l b
-  (<*>) =
-    error "todo: Course.StateT (<*>)#instance (Logger l)"
+  (<*>) (Logger l1 f) (Logger l2 a) = Logger (l1 ++ l2) (f a)
 
 -- | Implement the `Monad` instance for `Logger`.
 -- The `bind` implementation must append log values to maintain associativity.
@@ -347,8 +344,8 @@ instance Monad (Logger l) where
     (a -> Logger l b) ->
     Logger l a ->
     Logger l b
-  (=<<) =
-    error "todo: Course.StateT (=<<)#instance (Logger l)"
+  (=<<) f (Logger l x) = append l $ f x
+    where append l1 (Logger l2 a) = Logger (l1 ++ l2) a
 
 -- | A utility function for producing a `Logger` with one log value.
 --
@@ -358,8 +355,7 @@ log1 ::
   l ->
   a ->
   Logger l a
-log1 =
-  error "todo: Course.StateT#log1"
+log1 = Logger . (:. Nil)
 
 -- | Remove all duplicate integers from a list. Produce a log as you go.
 -- If there is an element above 100, then abort the entire computation and produce no result.
@@ -379,8 +375,20 @@ distinctG ::
   (Integral a, Show a) =>
   List a ->
   Logger Chars (Optional (List a))
-distinctG =
-  error "todo: Course.StateT#distinctG"
+distinctG = runOptionalT . flip evalT S.empty . filtering pred
+  where
+    -- pred :: (Integral a, Show a) => a -> StateT (S.Set a) (OptionalT (Logger Chars)) Bool
+    pred a =
+      StateT
+        ( \s -> 
+            if a > 100
+              then OptionalT $ log1 ("aborting > 100: " ++ show' a) Empty
+              else 
+                if even a 
+                  then OptionalT $ log1 ("even number: " ++ show' a) $ Full (not $ S.member a s, S.insert a s)
+                  else OptionalT $ pure $ Full (not $ S.member a s, S.insert a s)
+
+        )
 
 onFull ::
   (Applicative k) =>
