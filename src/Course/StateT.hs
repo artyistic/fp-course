@@ -202,8 +202,9 @@ distinct' ::
   (Ord a) =>
   List a ->
   List a
-distinct' =
-  error "todo: Course.StateT#distinct'"
+distinct' = flip eval' S.empty . filtering pred
+  where
+    pred a = state' (\s -> (not $ S.member a s, S.insert a s))
 
 -- | Remove all duplicate elements in a `List`.
 -- However, if you see a value greater than `100` in the list,
@@ -220,8 +221,15 @@ distinctF ::
   (Ord a, Num a) =>
   List a ->
   Optional (List a)
-distinctF =
-  error "todo: Course.StateT#distinctF"
+distinctF = flip evalT S.empty . filtering pred
+  where
+    pred a =
+      StateT
+        ( \s ->
+            if a > 100
+              then Empty
+              else Full (not $ S.member a s, S.insert a s)
+        )
 
 -- | An `OptionalT` is a functor of an `Optional` value.
 data OptionalT k a
@@ -239,8 +247,7 @@ instance (Functor k) => Functor (OptionalT k) where
     (a -> b) ->
     OptionalT k a ->
     OptionalT k b
-  (<$>) =
-    error "todo: Course.StateT (<$>)#instance (OptionalT k)"
+  (<$>) f (OptionalT kO) = OptionalT $ (<$>) f <$> kO
 
 -- | Implement the `Applicative` instance for `OptionalT k` given a Monad k.
 --
@@ -270,15 +277,16 @@ instance (Monad k) => Applicative (OptionalT k) where
   pure ::
     a ->
     OptionalT k a
-  pure =
-    error "todo: Course.StateT pure#instance (OptionalT k)"
+  pure = OptionalT . pure . pure
 
   (<*>) ::
     OptionalT k (a -> b) ->
     OptionalT k a ->
     OptionalT k b
-  (<*>) =
-    error "todo: Course.StateT (<*>)#instance (OptionalT k)"
+
+  (<*>) (OptionalT kf) (OptionalT ka) = OptionalT $ onFull apply =<< kf
+    where
+      apply f = onFull (pure . pure . f) =<< ka
 
 -- | Implement the `Monad` instance for `OptionalT k` given a Monad k.
 --
@@ -289,8 +297,7 @@ instance (Monad k) => Monad (OptionalT k) where
     (a -> OptionalT k b) ->
     OptionalT k a ->
     OptionalT k b
-  (=<<) =
-    error "todo: Course.StateT (=<<)#instance (OptionalT k)"
+  (=<<) f (OptionalT a') = OptionalT $ onFull (runOptionalT . f) =<< a'
 
 -- | A `Logger` is a pair of a list of log values (`[l]`) and an arbitrary value (`a`).
 data Logger l a

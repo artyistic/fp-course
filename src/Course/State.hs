@@ -173,7 +173,7 @@ firstRepeat ::
   Optional a
 firstRepeat l = eval (findM duplicatePred l) S.empty
   where
-    duplicatePred x = (\s -> const (pure (S.member x s)) =<< put (S.insert x s)) =<< get
+    duplicatePred x = State (\y -> (S.member x y, S.insert x y))
     -- this state takes s and produces an state predicate which has a bool to indicate whether
     -- an element is in the set, produced by the set member function. the set caches the seen elements
 
@@ -189,7 +189,8 @@ distinct ::
   List a
 distinct l = eval (filtering distinctPred l) S.empty
   where
-    distinctPred x = (\s -> const (pure (not $ S.member x s)) =<< put (S.insert x s)) =<< get
+    distinctPred x = State (\y -> (not $ S.member x y, S.insert x y))
+
 -- | A happy number is a positive integer, where the sum of the square of its digits eventually reaches 1 after repetition.
 -- In contrast, a sad number (not a happy number) is where the sum of the square of its digits never reaches 1
 -- because it results in a recurring sequence.
