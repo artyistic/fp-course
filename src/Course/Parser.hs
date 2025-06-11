@@ -3,6 +3,8 @@
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RebindableSyntax #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use lambda-case" #-}
 
 module Course.Parser where
 
@@ -120,7 +122,11 @@ constantParser =
 character ::
   Parser Char
 character =
-  error "todo: Course.Parser#character"
+  P
+    ( \i -> case i of
+        (t :. ts) -> Result ts t
+        _ -> UnexpectedEof
+    )
 
 -- | Parsers can map.
 -- Write a Functor instance for a @Parser@.
@@ -132,8 +138,7 @@ instance Functor Parser where
     (a -> b)
     -> Parser a
     -> Parser b
-  (<$>) =
-     error "todo: Course.Parser (<$>)#instance Parser"
+  (<$>) f (P p) = P $ (f <$>) <$> p
 
 -- | Return a parser that always succeeds with the given value and consumes no input.
 --
@@ -142,8 +147,7 @@ instance Functor Parser where
 valueParser ::
   a
   -> Parser a
-valueParser =
-  error "todo: Course.Parser#valueParser"
+valueParser = P . flip Result
 
 -- | Return a parser that tries the first parser for a successful value.
 --
@@ -166,8 +170,10 @@ valueParser =
   Parser a
   -> Parser a
   -> Parser a
-(|||) =
-  error "todo: Course.Parser#(|||)"
+(|||) p1 p2 =
+  P (
+    \i -> let t = parse p1 i in if isErrorResult t then parse p2 i else t
+  )
 
 infixl 3 |||
 
@@ -196,10 +202,11 @@ infixl 3 |||
 instance Monad Parser where
   (=<<) ::
     (a -> Parser b)
-    -> Parser a
+    -> Parser a-- | Return a parser that produces a character but fails if
+
     -> Parser b
-  (=<<) =
-    error "todo: Course.Parser (=<<)#instance Parser"
+  (=<<) fp pa =
+      P (\i -> onResult (parse pa i) (\rest a -> parse (fp a) rest))
 
 -- | Write an Applicative functor instance for a @Parser@.
 -- /Tip:/ Use @(=<<)@.
@@ -213,8 +220,7 @@ instance Applicative Parser where
     Parser (a -> b)
     -> Parser a
     -> Parser b
-  (<*>) =
-    error "todo: Course.Parser (<*>)#instance Parser"
+  (<*>) pf pa = (\f -> P $ \i -> onResult (parse pa i) (\r a -> Result r (f a))) =<< pf
 
 -- | Return a parser that produces a character but fails if
 --
@@ -232,8 +238,7 @@ instance Applicative Parser where
 satisfy ::
   (Char -> Bool)
   -> Parser Char
-satisfy =
-  error "todo: Course.Parser#satisfy"
+satisfy p = lift3 bool unexpectedCharParser valueParser p =<< character
 
 -- | Return a parser that produces the given character but fails if
 --
@@ -244,8 +249,7 @@ satisfy =
 -- /Tip:/ Use the @satisfy@ function.
 is ::
   Char -> Parser Char
-is =
-  error "todo: Course.Parser#is"
+is c = satisfy (==c)
 
 -- | Return a parser that produces a character between '0' and '9' but fails if
 --
@@ -268,8 +272,7 @@ is =
 -- True
 digit ::
   Parser Char
-digit =
-  error "todo: Course.Parser#digit"
+digit = satisfy isDigit
 
 --
 -- | Return a parser that produces a space character but fails if
@@ -293,8 +296,7 @@ digit =
 -- True
 space ::
   Parser Char
-space =
-  error "todo: Course.Parser#space"
+space = is ' '
 
 -- | Return a parser that conses the result of the first parser onto the result of
 -- the second. Pronounced "cons parser".
