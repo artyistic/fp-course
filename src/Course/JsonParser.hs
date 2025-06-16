@@ -155,7 +155,8 @@ jsonNumber ::
   Parser Rational
 jsonNumber = 
   optional fst 0.0 . readFloats <$> 
-    lift2 (++) (is '-' .:. list1 digit ||| list1 digit) (option Nil (is '.' .:. list digit))
+    lift2 (++) (is '-' .:. list1 digit ||| list1 digit) (option Nil (is '.' .:. list digit)) <*
+    spaces
 
 -- | Parse a JSON true literal.
 --
