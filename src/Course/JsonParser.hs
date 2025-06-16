@@ -14,6 +14,7 @@ import Course.Applicative
 import Course.Monad
 import Course.List
 import Course.Optional
+import GHC.Real (Real(toRational))
 
 -- $setup
 -- >>> :set -XOverloadedStrings
@@ -152,8 +153,9 @@ jsonString = betweenDoubleQuotes $ list (parseControl ||| jsonHex ||| noneof "\"
 -- True
 jsonNumber ::
   Parser Rational
-jsonNumber =
-  error "todo: Course.JsonParser#jsonNumber"
+jsonNumber = 
+  optional fst 0.0 . readFloats <$> 
+    lift2 (++) (is '-' .:. list1 digit ||| list1 digit) (option Nil (is '.' .:. list digit))
 
 -- | Parse a JSON true literal.
 --

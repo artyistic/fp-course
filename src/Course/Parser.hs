@@ -314,6 +314,12 @@ space = satisfy isSpace
   -> Parser (List a)
 (.:.) = lift2 (:.)
 
+(.++.) ::
+  Parser (List a)
+  -> Parser (List a)
+  -> Parser (List a)
+(.++.) = lift2 (++)
+
 infixr 5 .:.
 
 -- | Return a parser that continues producing a list of values from the given parser.
