@@ -153,8 +153,8 @@ jsonString = betweenDoubleQuotes $ list (parseControl ||| jsonHex ||| noneof "\"
 -- True
 jsonNumber ::
   Parser Rational
-jsonNumber = 
-  optional fst 0.0 . readFloats <$> 
+jsonNumber =
+  optional fst 0.0 . readFloats <$>
     lift2 (++) (is '-' .:. list1 digit ||| list1 digit) (option Nil (is '.' .:. list digit)) <*
     spaces
 
@@ -169,8 +169,7 @@ jsonNumber =
 -- True
 jsonTrue ::
   Parser Chars
-jsonTrue =
-  error "todo: Course.JsonParser#jsonTrue"
+jsonTrue = stringTok "true"
 
 -- | Parse a JSON false literal.
 --
@@ -183,8 +182,7 @@ jsonTrue =
 -- True
 jsonFalse ::
   Parser Chars
-jsonFalse =
-  error "todo: Course.JsonParser#jsonFalse"
+jsonFalse = stringTok "false"
 
 -- | Parse a JSON null literal.
 --
@@ -197,8 +195,7 @@ jsonFalse =
 -- True
 jsonNull ::
   Parser Chars
-jsonNull =
-  error "todo: Course.JsonParser#jsonNull"
+jsonNull = stringTok "null"
 
 -- | Parse a JSON array.
 --
@@ -220,8 +217,8 @@ jsonNull =
 -- Result >< [JsonTrue,JsonString "abc",JsonArray [JsonFalse]]
 jsonArray ::
   Parser (List JsonValue)
-jsonArray =
-  error "todo: Course.JsonParser#jsonArray"
+jsonArray = Nil <$ betweenCharTok '[' ']' spaces |||
+            betweenSepbyComma '[' ']' jsonValue 
 
 -- | Parse a JSON object.
 --
@@ -240,8 +237,11 @@ jsonArray =
 -- Result >xyz< [("key1",JsonTrue),("key2",JsonFalse)]
 jsonObject ::
   Parser Assoc
-jsonObject =
-  error "todo: Course.JsonParser#jsonObject"
+jsonObject = Nil <$ betweenCharTok '{' '}' spaces ||| members
+  where element = jsonValue
+        member = const . (,) <$> jsonString <*> charTok ':' <*> element
+        members = betweenSepbyComma '{' '}' member
+
 
 -- | Parse a JSON value.
 --
@@ -258,7 +258,17 @@ jsonObject =
 jsonValue ::
   Parser JsonValue
 jsonValue =
-   error "todo: Course.JsonParser#jsonValue"
+  spaces *>
+    (null ||| true ||| false ||| num ||| str ||| array ||| obj)
+  <* spaces
+  where null = JsonNull <$ jsonNull
+        true = JsonTrue <$ jsonTrue
+        false = JsonFalse <$ jsonFalse
+        array = JsonArray <$> jsonArray
+        str = JsonString <$> jsonString
+        obj = JsonObject <$> jsonObject
+        num = JsonRational <$> jsonNumber
+
 
 -- | Read a file into a JSON value.
 --
@@ -266,5 +276,8 @@ jsonValue =
 readJsonValue ::
   FilePath
   -> IO (ParseResult JsonValue)
-readJsonValue =
-  error "todo: Course.JsonParser#readJsonValue"
+readJsonValue fp = do
+  contents <- readFile fp
+  pure $ parse jsonValue contents
+
+-- running from base dir, readJsonValue "./share/test.json works"
