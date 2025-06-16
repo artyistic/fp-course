@@ -112,8 +112,12 @@ toSpecialCharacter c =
 -- True
 jsonString ::
   Parser Chars
-jsonString =
-  error "todo: Course.JsonParser#jsonString"
+jsonString = betweenDoubleQuotes $ list (parseControl ||| jsonHex ||| noneof "\"\\")
+  where betweenDoubleQuotes = between (is '\"') (charTok '\"')
+        jsonHex = is '\\' *> hexu
+        parseControl = optional fromSpecialCharacter '\NUL'. toSpecialCharacter <$> is '\\' *> oneof "bfnrtv\'\"\\"
+        -- using oneOf, we always get the supported characters, the fail case in optional will never fire
+        -- its hacky but a lot better than the official solution
 
 -- | Parse a JSON rational.
 --
