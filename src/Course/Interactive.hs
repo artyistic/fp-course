@@ -1,6 +1,8 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
+{-# HLINT ignore "Use lambda-case" #-}
 
 module Course.Interactive where
 
@@ -83,7 +85,12 @@ data Op =
 convertInteractive ::
   IO ()
 convertInteractive =
-  error "todo: Course.Interactive#convertInteractive"
+  vooid
+    ( putStr "Enter a string: "
+        >- getLine
+        >>= \c ->
+          putStrLn (map toUpper c)
+    )
 
 -- |
 --
@@ -111,7 +118,15 @@ convertInteractive =
 reverseInteractive ::
   IO ()
 reverseInteractive =
-  error "todo: Course.Interactive#reverseInteractive"
+  vooid
+    ( putStr "Enter a file name to be reversed: "
+        >- getLine
+        >>= \input ->
+          putStr "Enter a file name to write the reversed file to: "
+          >- getLine
+          >>= \output ->
+            readFile input >>= pure . reverse >>= writeFile output
+    )
 
 -- |
 --
@@ -137,7 +152,19 @@ reverseInteractive =
 encodeInteractive ::
   IO ()
 encodeInteractive =
-  error "todo: Course.Interactive#encodeInteractive"
+  vooid
+    ( putStr "Enter a string: "
+        >- getLine
+        >>= putStrLn . encode
+    )
+  where encode =
+          flatMap
+            ( \c -> case c of
+                ' ' -> "%20"
+                '\t' -> "%09"
+                '\"' -> "%22"
+                _ -> c :. Nil
+            )
 
 interactive ::
   IO ()
