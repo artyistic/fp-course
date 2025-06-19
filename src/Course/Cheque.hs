@@ -25,6 +25,8 @@ import Course.List
 import Course.Functor
 import Course.Applicative
 import Course.Monad
+import qualified Data.Map as M
+import qualified Data.List as L
 
 -- $setup
 -- >>> :set -XOverloadedStrings
@@ -187,7 +189,7 @@ data Digit =
   | Seven
   | Eight
   | Nine
-  deriving (Eq, Ord)
+  deriving (Eq, Ord, Show)
 
 showDigit ::
   Digit
@@ -218,7 +220,55 @@ data Digit3 =
   D1 Digit
   | D2 Digit Digit
   | D3 Digit Digit Digit
-  deriving Eq
+  deriving (Eq, Show)
+
+-- D1 Zero == D2 Zero Zero == D3 Zero Zero Zero 
+-- therefore this is only for thousands and up groupings
+showDigit3 ::
+  Digit3 -> Chars
+
+showDigit3 trio = case trio of
+  D1 Zero -> ""
+  D1 d1 -> showDigit d1
+  D2 Zero Zero -> ""
+  D2 Zero d1 -> showDigit3 (D1 d1)
+
+  -- tens case
+  D2 d1 Zero -> optional snd "" $ find (\c -> d1 == fst c) tens
+
+  -- teens case, 11-19
+  D2 One d2 -> optional snd "" $ find (\c -> d2 == fst c) teens
+
+  -- 21-99
+  D2 d1 d2 -> showDigit3 (D2 d1 Zero) ++ "-" ++ showDigit d2
+
+  D3 Zero d1 d2 -> showDigit3 (D2 d1 d2)
+  D3 d1 Zero Zero -> showDigit d1 ++ " hundred"
+  D3 d1 d2 d3 -> showDigit d1 ++ " hundred and " ++ showDigit3 (D2 d2 d3)
+  where
+    tens =
+      listh [ (One, "ten"),
+          (Two, "twenty"),
+          (Three, "thirty"),
+          (Four, "forty"),
+          (Five, "fifty"),
+          (Six, "sixty"),
+          (Seven, "seventy"),
+          (Eight, "eighty"),
+          (Nine, "ninety")
+      ]
+    teens =
+        listh [ (One, "eleven"),
+          (Two, "twelve"),
+          (Three, "thirteen"),
+          (Four, "fourteen"),
+          (Five, "fifteen"),
+          (Six, "sixteen"),
+          (Seven, "seventeen"),
+          (Eight, "eighteen"),
+          (Nine, "nineteen")
+        ]
+      -- zipWith (,) [1..9] {list} would work but i dont wanna use listh and hlist
 
 -- Possibly convert a character to a digit.
 fromChar ::
@@ -323,5 +373,54 @@ fromChar _ =
 dollars ::
   Chars
   -> Chars
-dollars =
-  error "todo: Course.Cheque#dollars"
+dollars = dollarsAndCents . combine . digitize
+
+dollarsAndCents :: (List Chars, List Chars) -> List Char
+dollarsAndCents (ds, cs) = dollarify ds ++ " and " ++ centify cs
+
+combine :: (List (List Char), List (List Char)) -> (List (List Char), List (List Char))
+combine = (reverse `both`) . (zipWith (\a b -> if b == "" then "" else b ++ " " ++ a) illion `both`)
+digitize :: Chars -> (List Chars, List Chars)
+digitize = (map showDigit3 `both`) . (groupByHundreds `both`) . (\(x, y) -> (stringToDigit x, trimCents $ stringToDigit y)) . splitOnDotReverse
+
+
+groupByHundreds :: List Digit -> List Digit3
+groupByHundreds l = case l of
+  Nil -> Nil
+  a :. Nil -> D1 a :. Nil
+  a :. b :. Nil -> D2 b a :. Nil
+  a :. b :. c :. rest -> D3 c b a :. groupByHundreds rest
+
+stringToDigit :: Chars -> List Digit
+stringToDigit = concatOptional fromChar . takeOutZeros
+  where concatOptional :: (a -> Optional b) -> List a -> List b
+        concatOptional f = foldRight (\x y -> optional (:. y) y (f x)) Nil
+
+splitOnDotReverse :: Chars -> (Chars, Chars)
+splitOnDotReverse s =
+  case break (== '.') s of
+    (_, Nil)       -> (reverse s, "")
+    (bucks, _ :. cents) -> (reverse bucks, reverse cents)
+
+both :: (a -> b) -> (a, a) -> (b, b)
+both f (x, y) = (f x, f y)
+
+takeOutZeros :: Chars -> Chars
+takeOutZeros l = if allZero l then '0' :. Nil else l
+allZero :: Chars -> Bool
+allZero = all (=='0')
+
+dollarify :: List Chars -> Chars
+dollarify ds = case ds of
+  Nil :. Nil -> "zero dollars"
+  "one " :. Nil -> "one dollar"
+  _ -> unwords (filter (/= "") ds) ++ "dollars"
+centify :: List (List Char) -> List Char
+centify cs = case cs of
+  Nil :. Nil -> "zero cents"
+  "one " :. Nil -> "one cent"
+  _ -> unwords (filter (/= "") cs) ++ "cents"
+
+trimCents :: List Digit -> List Digit
+trimCents (a :. Nil) = Zero :. a :. Nil
+trimCents l = reverse $ take 2 (reverse l)
