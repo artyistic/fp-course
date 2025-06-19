@@ -25,8 +25,6 @@ import Course.List
 import Course.Functor
 import Course.Applicative
 import Course.Monad
-import qualified Data.Map as M
-import qualified Data.List as L
 
 -- $setup
 -- >>> :set -XOverloadedStrings
